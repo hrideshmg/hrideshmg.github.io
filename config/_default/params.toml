@@ -78,7 +78,7 @@ enabled = true
 ## Comments
 [comments]
 enabled = true
-provider = "disqus"
+provider = "remark42"
 
 [comments.disqusjs]
 shortname = ""
@@ -93,8 +93,8 @@ issueTerm = "pathname"
 label = ""
 
 [comments.remark42]
-host = ""
-site = ""
+host = "https://comments.tinylinker.site"
+site = "remark"
 locale = ""
 
 [comments.vssue]
