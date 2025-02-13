@@ -2,7 +2,7 @@
 title: Hello World!
 description: Welcome to my blog
 slug: hello-world
-date: 2022-03-06 00:00:00+0000
+date: 2025-02-13
 image: cover.png
 weight: 1
 ---
