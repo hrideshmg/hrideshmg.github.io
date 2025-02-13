@@ -1,10 +1,20 @@
 ---
 title: Links
+readingTime: false
+description: A few links you might find interesting.
 links:
   - title: GitHub
-    description: GitHub is the world's largest software development platform.
-    website: https://github.com
+    description: Checkout a few of my projects
+    website: https://github.com/hrideshmg
     image: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+  - title: MyAnimeList
+    description: Take a peek at what I'm watching right now
+    website: https://myanimelist.net/profile/moltenlava
+    image: https://upload.wikimedia.org/wikipedia/commons/7/7a/MyAnimeList_Logo.png
+  - title: Mail
+    website: "mailto:hridesh699@gmail.com"
+    image: https://upload.wikimedia.org/wikipedia/commons/c/ce/Android_Email_8.1_Icon.png
+    description: Reach out to me!
 menu:
     main: 
         weight: 4
@@ -13,21 +23,3 @@ menu:
 
 comments: false
 ---
-
-To use this feature, add `links` section to frontmatter.
-
-This page's frontmatter:
-
-```yaml
-links:
-  - title: GitHub
-    description: GitHub is the world's largest software development platform.
-    website: https://github.com
-    image: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
-  - title: TypeScript
-    description: TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.
-    website: https://www.typescriptlang.org
-    image: ts-logo-128.jpg
-```
-
-`image` field accepts both local and external images.
