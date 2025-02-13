@@ -15,7 +15,7 @@ I'm quite passionate about software development and actually I'm part of an open
 > Jack of all trades, master of none, though often better than a master of one
 
 ## What you can expect
-There's no point in hiding it, as you could probably tell from my hobbies, I'm a huge nerd and that is going to reflect on the type of content I make as well :)
+There's no point in hiding it, as you could probably tell from my hobbies, I'm a huge nerd and that is going to reflect on the type of content I write as well :)
 
 Here are a few topics that you can expect to *(hopefully)* find on this blog soon -
 
@@ -23,4 +23,4 @@ Here are a few topics that you can expect to *(hopefully)* find on this blog soo
 2. Reviews on Anime I've watched or Games I've played.
 3. Tutorials on random things that I feel deserve one.
 4. Sharing my experience on events I've attended/helped organize.
-5. Random jottings about life and the universe.
+5. Random jottings about life.
