@@ -4,7 +4,6 @@ description: Welcome to my blog
 slug: hello-world
 date: 2025-02-13
 image: cover.png
-weight: 1
 ---
 
 ## A bit about myself
