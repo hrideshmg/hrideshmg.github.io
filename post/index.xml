@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Hridesh MG</title><link>https://hrideshmg.github.io/post/</link><description>Recent content in Posts on Hridesh MG</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Fri, 04 Apr 2025 12:21:20 +0530</lastBuildDate><atom:link href="https://hrideshmg.github.io/post/index.xml" rel="self" type="application/rss+xml"/><item><title>Linux Kernel Mentorship</title><link>https://hrideshmg.github.io/p/lfx-mentorship/</link><pubDate>Sat, 08 Mar 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.github.io/p/lfx-mentorship/</guid><description>&lt;img src="https://hrideshmg.github.io/p/lfx-mentorship/cover.png" alt="Featured image of post Linux Kernel Mentorship" />&lt;p>This blog post has been long overdue but I&amp;rsquo;ve finally gotten around to it! I graduated from the Linux Kernel Bug Fixing Mentorship Programme'25 sometime in late january. I&amp;rsquo;ll be detailing my experience about the same in this blog post.&lt;/p>
+&lt;h2 id="what-is-the-lkmp">What is the LKMP?
+&lt;/h2>&lt;p>The Linux Kernel Mentorship programme or &lt;a class="link" href="https://wiki.linuxfoundation.org/lkmp" target="_blank" rel="noopener"
+>LKMP&lt;/a> for short is, as written on their website -&lt;/p>
+&lt;blockquote>
+&lt;p>&amp;ldquo;A structured remote learning opportunity for aspiring Linux Kernel developers&amp;rdquo;&lt;/p>&lt;/blockquote>
+&lt;p>In specific, the programme that I was part of was the Linux Kernel Bug Fixing Programme but don&amp;rsquo;t let the name fool you, you can do a lot more than just fix bugs, like writing new device drivers or extending existing ones.&lt;/p>
+&lt;p>In short, its an opportunity where beginners to kernel dev can get their feet wet with the Linux Kernel while being supported by experienced mentors. Note that unlike GSoC or traditional &lt;a class="link" href="https://lfx.linuxfoundation.org/tools/mentorship/" target="_blank" rel="noopener"
+>LFX&lt;/a> mentorships, the kernel bug fixing mentorship is an unpaid one but the knowledge you get from the whole process is worth its weight in gold.&lt;/p>
+&lt;p>If, however, you&amp;rsquo;re someone who needs a little more motivation than that then you should probably look elsewhere as you can only ever do one LFX mentorship during your lifetime. Choose wisely :)&lt;/p>
+&lt;h3 id="the-structure-of-the-program">The structure of the program
+&lt;/h3>&lt;p>I would say that the LKMP is a very flexible program in the sense that there is no roadmap or particular set of tasks that you have to complete in order to graduate. You are free to make any kind of meaningful contribution to the kernel, this opens the door to work on anything that you&amp;rsquo;re truly interested in. This coupled with the fact that you get to attend weekly meetings with experienced kernel developers makes it a very enriching experience.&lt;/p>
+&lt;p>The only requirements for graduation is that you need to have around &lt;strong>5-10 patches&lt;/strong> accepted into the Linux Kernel by the end of the program. This might seem difficult at the start, but trust me, once you get into the flow of things, it becomes a breeze.&lt;/p>
+&lt;h2 id="why-i-decided-to-join-the-programme">Why I decided to join the programme
+&lt;/h2>&lt;p>There&amp;rsquo;s actually a bit of an interesting backstory behind this, when I first bought my laptop (an Acer Nitro 5) and installed Linux on it ( as one does with a brand new PC, &lt;em>obviously&lt;/em> ) I noticed that no matter what I tried, I just could not get the headphone jack to detect the microphone.&lt;/p>
+&lt;p>This is an issue that I had revisisted multiple times over the course of a year and it had even persisted across distros! This led me to believe that the issue was in the kernel and sure enough, after a bit of research this had been the case.&lt;/p>
+&lt;p>Around this time a few of my &lt;a class="link" href="https://www.amfoss.in" target="_blank" rel="noopener"
+>club&lt;/a> seniors suggested me to try out the LFX mentorship since I wanted to explore low level development and I figured that it was the perfect opportunity to try and fix this tiny (but very annoying!) problem. As Plato once said -&lt;/p>
+&lt;blockquote>
+&lt;p>&amp;ldquo;Necessity is the mother of invention&amp;rdquo;
+&lt;br>&amp;ndash; &lt;cite>Plato&lt;/cite>&lt;/p>&lt;/blockquote>
+&lt;h2 id="my-contributions">My contributions
+&lt;/h2>&lt;h3 id="fixing-microphone-input-on-the-alc287-codec">Fixing microphone input on the ALC287 Codec
+&lt;/h3>&lt;p>After a bit of research, I stumbled upon this excellent blog &lt;a class="link" href="https://asus-linux.org/blog/sound-2021-01-11/" target="_blank" rel="noopener"
+>post&lt;/a> by Luke Jones on his adventure for getting sound to work on Asus ROG notebook. If it were not for this resource, this journey would have been much, much longer.&lt;/p>
+&lt;p>Through his blog I understood a lot of fundamentals regarding how audio is handled for Realtek Codecs on Linux but wait a minute Hridesh, what on earth is a Codec? Let me explain it with the help of an image -&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;img src="https://hrideshmg.github.io/p/lfx-mentorship/hdaudio.png"
+width="506"
+height="372"
+srcset="https://hrideshmg.github.io/p/lfx-mentorship/hdaudio_hu_aba675a659b2acb4.png 480w, https://hrideshmg.github.io/p/lfx-mentorship/hdaudio_hu_93f35c3bd0b5d4f.png 1024w"
+loading="lazy"
+alt="Audio Architecture"
+class="gallery-image"
+data-flex-grow="136"
+data-flex-basis="326px"
+>&lt;/p>&lt;/blockquote>
+&lt;p>As you can see the &lt;strong>Codec&lt;/strong> is a hardware chip on the motherboard which is responsible for controlling the speakers and microphone on the system. The kernel interacts with this chip using the I2C interface, but we don&amp;rsquo;t need to go that deep to fix our issue.&lt;/p>
+&lt;p>The problem that occurs here is that this codec expects the software to interact with it in a certain manner. However, Realtek, in all their glory, often ship these chips with non-standard configurations, meaning they don&amp;rsquo;t always properly report their capabilities to the operating system. Instead, they rely on driver-specific &lt;strong>quirks&lt;/strong> to function correctly.&lt;/p>
+&lt;p>The issue is that these quirks are only implemented in the Windows driver, leaving Linux users to manually patch or configure the kernel to get everything working. The result of this? A giant file in the kernel tree named &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/sound/pci/hda/patch_realtek.c?h=v6.14" target="_blank" rel="noopener"
+>patch_realtek.c&lt;/a> which has (at the time of writing) over 13,000 lines of patches for various different codecs.&lt;/p>
+&lt;p>After digging a bit deeper into it and experimenting a bit, I finally got it to work after reverse engineering the windows driver and figuring out which quirk was missing! This was my reaction after finally see the mic input meter start moving -&lt;/p>
+&lt;p>&lt;img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExd3Y5djB6djhxbnl3am4zY29kanF5OGh4azFpbm1wbXdtMnRsYTRiOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/S9i8jJxTvAKVHVMvvW/giphy.gif"
+loading="lazy"
+alt="happy"
+>&lt;/p>
+&lt;p>Apparently, the quirk that I had found out was already defined in the &lt;code>patch_realtek&lt;/code> file, so all I had to do was map it to my codec. I quickly made a &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit/?id=5a69e3d0a1b0f07e58c353560cfcb1ea20a6f040" target="_blank" rel="noopener"
+>patch&lt;/a> and submitted it and it finally got released in v6.13 of the kernel. This means that everyone who has my laptop or uses the same audio codec can finally enjoy working microphone input.&lt;/p>
+&lt;h3 id="enabling-turbo-support-on-my-laptop">Enabling Turbo support on my laptop
+&lt;/h3>&lt;p>The second contribution is the one I spent the most amount of time on and it&amp;rsquo;s where I realized how awesome the kernel community really is. My laptop is a gaming laptop and gaming laptops often have this feature where you can activate certain &lt;strong>profiles&lt;/strong> like &amp;ldquo;performance&amp;rdquo; or &amp;ldquo;quiet&amp;rdquo;.&lt;/p>
+&lt;p>These profiles enable you to extract more power from your machine by overclocking the CPU/GPU or tell it to slow down the fans so that it runs more quietly. However, these profiles are only accessible on Windows through the dedicated vendor app.&lt;/p>
+&lt;p>I was initially skeptical as to whether it was even possible to bring this support to Linux, which prompted me to send an email to the kernel mailing list asking for help. The developers there were extremely supportive and they even offered to write the patch for me! However, since I wanted to learn and tinker with it, I endeavoured to try and implement it myself.&lt;/p>
+&lt;p>Through the process, I learnt about a variety of different things like ACPI tables, WMI calls, sysfs interfaces, and even did some indepth reverse-engineering using Ghidra and dotPeek to find out how the Windows app worked underneath the hood. A full technical write up on this would warrant another blog post, so keep an eye out for that ;)&lt;/p>
+&lt;p>If you&amp;rsquo;re interested however, here is a &lt;a class="link" href="https://docs.google.com/document/d/1p9wXSrygZ4AMlPRQRoL19wldNuA2GWc_esUgVjJfgeg/edit?usp=sharing" target="_blank" rel="noopener"
+>link&lt;/a> to a few rough notes that I kept while reversing. Beware though! They are a bit unreadable.&lt;/p>
+&lt;h2 id="my-experience">My experience
+&lt;/h2>&lt;p>The LKMP has been one of the most impactful programs that I&amp;rsquo;ve participated in. You might find this surprising, but the majority of kernel developers aren&amp;rsquo;t actually paid for their work, they do everything voluntarily and their enthusiasm is nothing short of infectious.&lt;/p>
+&lt;p>Taking part in this whole process really taught me a lot, the kernel community has very high standards when it comes to code quality. I&amp;rsquo;ve had maintainers painstakingly take apart each line in my patch to suggest improvements and question logic but don&amp;rsquo;t be scared of this! In fact, this level of scrutiny is what makes the kernel so robust. Every comment from a maintainer is an opportunity to learn, not just about kernel code but about writing efficient, clean and maintainable code.&lt;/p>
+&lt;p>I feel like the way I approach code has fundamentally changed after taking part in the LKMP. For starters, I&amp;rsquo;ve become much more conscious of the changes that I make and running &lt;code>git diff&lt;/code> to verify my logic before every commit has pretty much become second nature to me.&lt;/p>
+&lt;p>Debugging issues in a codebase as large and complex as the Linux Kernel has also given me the confidence that if I put my mind to it, I can tackle any problem, no matter how large it may seem. It wouldn&amp;rsquo;t be an exaggeration to say that I&amp;rsquo;ve improved significantly as a developer after completing the programme.&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>I think I&amp;rsquo;ll just end this post by saying that if you&amp;rsquo;ve been meaning to explore kernel development or just become a better developer overall, the LKMP is a fantastic opportunity. The learning curve might be a bit steep, but as they say - &amp;ldquo;Its the hard things in life that are worth doing.&amp;rdquo;&lt;/p>
+&lt;p>Here is a link where you can check out all of my contributions to the kernel: &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/log/?qt=author&amp;amp;q=hridesh" target="_blank" rel="noopener"
+>https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/log/?qt=author&amp;q=hridesh&lt;/a>&lt;/p></description></item><item><title>Silence</title><link>https://hrideshmg.github.io/p/silence/</link><pubDate>Sun, 16 Feb 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.github.io/p/silence/</guid><description>&lt;p>I sit here in the darkness, my laptop wide open, the gentle hum of the ceiling fan and the rhythmic pulse of the led on the wifi router my only companion.&lt;/p>
+&lt;p>There is no sound, except the one within my mind. Thoughts as they are - floating about, colliding and colluding, such is the nature of existence.&lt;/p>
+&lt;p>Sound may very well be the antithesis of introspection, for quiet retreat is a tough thing to find in this noisy and bustling world. Yet, I wish it more common.&lt;/p>
+&lt;p>The external silence only serves to amplify the internal chaos; yet, without it, one wouldn&amp;rsquo;t even realize the disarray within.&lt;/p></description></item><item><title>Hello World!</title><link>https://hrideshmg.github.io/p/hello-world/</link><pubDate>Thu, 13 Feb 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.github.io/p/hello-world/</guid><description>&lt;img src="https://hrideshmg.github.io/p/hello-world/cover.webp" alt="Featured image of post Hello World!" />&lt;h2 id="a-bit-about-myself">A bit about myself
+&lt;/h2>&lt;p>Hey there I&amp;rsquo;m Hridesh MG and welcome to my little space on the interwebs. I&amp;rsquo;m a sophomore student pursuing Computer Science Engineering at &lt;a class="link" href="https://www.amrita.edu/" target="_blank" rel="noopener"
+>Amrita University&lt;/a>. I&amp;rsquo;ve been meaning to make this blog for a while now but only got around to doing it recently.&lt;/p>
+&lt;p>I&amp;rsquo;m quite passionate about software development and actually I&amp;rsquo;m part of an open source club at my college called &lt;a class="link" href="https://amfoss.in/" target="_blank" rel="noopener"
+>amFOSS&lt;/a>. Tech is not all though, few of my other hobbies include tinkering with electronics, watching anime, playing video games, and pondering about life while gazing at the stars. That said, I&amp;rsquo;m always open to trying new things and I always like to refer to myself as a generalist, as the famous quote goes -&lt;/p>
+&lt;blockquote>
+&lt;p>Jack of all trades, master of none, though often better than a master of one&lt;/p>&lt;/blockquote>
+&lt;h2 id="what-you-can-expect">What you can expect
+&lt;/h2>&lt;p>There&amp;rsquo;s no point in hiding it, as you could probably tell from my hobbies, I&amp;rsquo;m a huge nerd and that is going to reflect on the type of content I write as well :)&lt;/p>
+&lt;p>Here are a few topics that you can expect to &lt;em>(hopefully)&lt;/em> find on this blog soon -&lt;/p>
+&lt;ol>
+&lt;li>Technical blogs about stuff I&amp;rsquo;ve learned recently or things I find interesting.&lt;/li>
+&lt;li>Reviews on Anime I&amp;rsquo;ve watched or Games I&amp;rsquo;ve played.&lt;/li>
+&lt;li>Tutorials on random things that I feel deserve one.&lt;/li>
+&lt;li>Sharing my experience on events I&amp;rsquo;ve attended/helped organize.&lt;/li>
+&lt;li>Random jottings about life.&lt;/li>
+&lt;/ol></description></item></channel></rss>
