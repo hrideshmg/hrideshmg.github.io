@@ -3,7 +3,7 @@ title: Hello World!
 description: Welcome to my blog
 slug: hello-world
 date: 2025-02-13
-image: cover.png
+image: cover.webp
 ---
 
 ## A bit about myself
