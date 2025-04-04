@@ -5,7 +5,7 @@ slug: lfx-mentorship
 date: 2025-03-08
 categories: dev
 draft: false
-image: cover.webp
+image: cover.png
 ---
 
 This blog post has been long overdue but I've finally gotten around to it! I graduated from the Linux Kernel Bug Fixing Mentorship Programme'25 sometime in late january. I'll be detailing my experience about the same in this blog post.
