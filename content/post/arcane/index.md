@@ -19,7 +19,12 @@ Fortiche have pretty much cemented themselves as pioneers with their distinctive
 ## The Characters
 This is where the brilliance of the show really shines through. I could personally connect and empathize with a lot of characters in the show, their arcs are meaningful and full of emotion but they still feel very realistic. Almost each and every character in the show has flaws in one way or another and they all deal with their pain and trauma in *distinct* ways.
 
-The show can be quite deep at times as well, with themes like revenge, betrayal, abandonment, loyalty, family all showcased in their rawest form without any dilution. The writers really don't pull their punches here, so don't be surprised if a character you really like ends up in the casket a few episodes down.
+The show can be quite deep at times as well, with themes like revenge, betrayal, abandonment, loyalty, family, loss all showcased in their rawest form without any dilution. The writers really don't pull their punches here, so don't be surprised if a character you really like ends up in the casket a few episodes down.
+
+## The Music/Sound Design
+Arcane has hands down the best sound design I've seen in any animated show ever. The soundtrack is also really amazing, the songs are all really memorable and they really take impactful scenes to the next level, they are all written specifically for the show and they really do reflect the feelings of the characters in the scene.
+
+Music when done right is actually one of my favourite aspects of media whether it be shows, movies or games just for the simple reason that listening to a song can evoke the same or similar emotion that you felt while actually experiencing the show for the first time.
 
 ## The World Building
 As someone who hasn't really played the game much or has read any of the lore. The writers definitely managed to make the land of Piltover (and Runeterra in general) feel alive. I will always say that first and foremost, Arcane is a show about the characters but they have put a lot of work into the technical aspects as well. Even exploring concepts like time travel and parallel dimensions.
