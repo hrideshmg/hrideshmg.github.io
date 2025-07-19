@@ -34,5 +34,79 @@ Initially, I tried to do some trial and error using a tool I discovered called [
 I also made a small documentation [patch](https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/diff/Documentation/wmi/driver-development-guide.rst?id=98e45f0d7b99ceac029913ce3a161154a8c4c4a7) during this time to mention this tool in the WMI driver development [guide](https://docs.kernel.org/wmi/driver-development-guide.html).
 
 ## Reversing the NitroSense app
-Thus it began, my first foray into reverse engineering a real app. The NitroSense app was written in C# and thus I used dotPeek to decompile it. From there, I found the function which was responsible for setting the fan speeds after searching around for a bit:
+Thus it began, my first foray into reverse engineering a real app. The NitroSense app was written in C# and thus I used dotPeek to decompile it. 
+### Fan Speeds Cracked
+While searching for the input values for the overclock WMI call, I chanced upon a function that was responsible for setting the fan speeds - 
+```C
+public static bool set_all_fan_mode(CommonFunction.Fan_Mode_Type mode_index)
+{
+  ulong intput = 9;
+  switch (mode_index)
+  {
+    case CommonFunction.Fan_Mode_Type.Auto:
+      intput |= 4259840UL;
+      break;
+    case CommonFunction.Fan_Mode_Type.Max:
+      intput |= 8519680UL;
+      break;
+    case CommonFunction.Fan_Mode_Type.Custom:
+      intput |= 12779520UL;
+      break;
+  }
+  return ((int) WMIFunction.SetAcerGamingFanGroupBehavior(intput).GetAwaiter().GetResult() & (int) byte.MaxValue) == 0;
+}
+```
 
+As we can see, input values of the WMI function are readily available here! There are three magic values which correspond to the three different fan modes. Was a bit surprised to the see the typo in the 'intput' variable though, kind of refreshing to know that even billion dollar companies have such mistakes in their code lol.
+
+### In Search Of Overclocks..
+The overclock function was sadly not as simple of an egg to crack. I traced through the GUI code for the app and narrowed it down to this particular function -
+```C
+public static async Task<int> set_operation_mode(int Operation_Mode)
+{
+  int output = -1;
+  try
+  {
+    NamedPipeClientStream cline_stream = new NamedPipeClientStream(".", "PredatorSense_service_namedpipe", PipeDirection.InOut);
+    cline_stream.Connect();
+    output = await Task.Run<int>((Func<int>) (() =>
+    {
+      IPCMethods.SendCommandByNamedPipe(cline_stream, 30, (object) (uint) Operation_Mode);
+      cline_stream.WaitForPipeDrain();
+      byte[] buffer = new byte[9];
+      cline_stream.Read(buffer, 0, buffer.Length);
+      return BitConverter.ToInt32(buffer, 5);
+    })).ConfigureAwait(false);
+    cline_stream.Close();
+    return output;
+  }
+  catch (Exception ex)
+  {
+    return output;
+  }
+}
+```
+Don't worry if it all looks like gibberish to you, it did to me as well when I first came across it. Since i was wholly unfamiliar with the Windows API, I took to ChatGPT to explain the code to me like a 5 year old. GPT explained that this function was creating something called a ["Named Pipe"](https://en.wikipedia.org/wiki/Named_pipe) which is used for inter-process communication.
+
+Uh oh, this meant that the actual WMI call was was being made by a process on the receiving end of this pipe. Interestingly, I noted that the name of the pipe was 'PredatorSense_**service**', suggesting that the recipient process was a service.
+
+While we are here, let me also comment that the `Operation_Mode` argument of `set_operation_mode()` took one of three values: 0, 1 or 4. Which makes sense considering that my lapop has three performance modes.
+
+### The Final Gatekeeper
+Sure enough, there was indeed a service in services.msc named `Predator Service`, the service started a process called `Pssvc.exe`. This particular program was written in C++, I initially used IDA to dissassemble it before remembering that I had pretty much 0 knowledge of assembly ;-;
+
+That's when I remembered Ghidra, a reversing tool developed by the NSA, that I had used during my first CTF contest - inCTFj. Ghidra tries its best to produce a readable C-like program from the disassembled code.
+
+After some heavy decompiling on the service file using Ghidra I finally found out that the value is read from the named pipe and then used to call a function from a function pointer table as follows:
+```C
+(*(code *)(&PTR_LAB_140052c90)[uVar14])(puVar5,puVar8,&local_250,&local_244);
+```
+Here, `&PTR_LAB_140052c90` refers to the following function pointer table:
+
+<img src="function_table.png" width="480">
+
+If you remember from [earlier](#in-search-of-overclocks), a command index of 30 was passed into the named pipe along with the Operation Mode and this corresponds to the function pointer that I've highlighted in the image. Here is the relevant section of the code which calls this particular function:
+
+<img src="ghidra_decomp.png" width="480">
+
+Yes it is one hell of a monstrosity, but after staring at it for a long time, I figured out that all it does is pass an array of bytes taken from the named pipe and their corresponding byte offsets to the function. You can observe this in the last highlighted line of code, `puVar5` is the array of bytes and `puVar8` are the byte offsets (I think anyways)
