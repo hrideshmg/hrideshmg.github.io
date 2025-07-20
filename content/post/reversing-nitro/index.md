@@ -16,7 +16,7 @@ Now, much to the surprise of nobody, this key did not do anything on Linux since
 
 Anyways, it proved as a good starting point and while going through the source code of the project, I realized that this module was nothing more than a modified fork of a module from the platform profile subsystem on the kernel tree.
 
-## Let the tinkering begin! 🛠️
+## Let the tinkering begin!
 ### Finding The Hidden Interface
 After a brief skim through the project, I understood that things like RGB LEDs, fan profiles and certain other hardware related functionalities are often controlled through something known as [WMI](https://en.wikipedia.org/wiki/Windows_Management_Instrumentation), during this phase I also chanced upon a youtube [miniseries](https://www.youtube.com/watch?v=97-WNhUmoig&list=PLv2kA4LxAI4Dq2ic_hU9bdvxIzoz5SzBr) created by the author of the project which gave me some great insight into how this project works under the hood.
 
