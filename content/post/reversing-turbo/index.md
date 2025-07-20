@@ -2,7 +2,7 @@
 title: 'The Key That Did Nothing: My Journey Into the Linux Kernel'
 description: A rabbit hole of reverse engineering, WMI calls, and kernel patches
 slug: reversing-turbo
-date: 2025-04-30
+date: 2025-07-20
 categories: dev
 draft: false
 image: cover.png

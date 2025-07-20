@@ -61,9 +61,7 @@ These profiles enable you to extract more power from your machine by overclockin
 
 I was initially skeptical as to whether it was even possible to bring this support to Linux, which prompted me to send an email to the kernel mailing list asking for help. The developers there were extremely supportive and they even offered to write the patch for me! However, since I wanted to learn and tinker with it, I endeavoured to try and implement it myself.
 
-Through the process, I learnt about a variety of different things like ACPI tables, WMI calls, sysfs interfaces, and even did some indepth reverse-engineering using Ghidra and dotPeek to find out how the Windows app worked underneath the hood. A full technical write up on this would warrant another blog post, so keep an eye out for that ;)
-
-If you're interested however, here is a [link](https://docs.google.com/document/d/1p9wXSrygZ4AMlPRQRoL19wldNuA2GWc_esUgVjJfgeg/edit?usp=sharing) to a few rough notes that I kept while reversing. Beware though! They are a bit unreadable.
+Through the process, I learnt about a variety of different things like ACPI tables, WMI calls, sysfs interfaces, and even did some indepth reverse-engineering using Ghidra and dotPeek to find out how the Windows app worked underneath the hood. ~~A full technical write up on this would warrant another blog post, so keep an eye out for that~~ The [blog post]({{<ref "reversing-turbo">}}) for it is now out :)
 
 ## My experience
 The LKMP has been one of the most impactful programs that I've participated in. You might find this surprising, but the majority of kernel developers aren't actually paid for their work, they do everything voluntarily and their enthusiasm is nothing short of infectious.
