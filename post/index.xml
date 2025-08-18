@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Hridesh MG</title><link>https://hrideshmg.com/post/</link><description>Recent content in Posts on Hridesh MG</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sun, 20 Jul 2025 22:43:49 +0530</lastBuildDate><atom:link href="https://hrideshmg.com/post/index.xml" rel="self" type="application/rss+xml"/><item><title>The Key That Did Nothing: My Journey Into the Linux Kernel</title><link>https://hrideshmg.com/p/reversing-turbo/</link><pubDate>Sun, 20 Jul 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.com/p/reversing-turbo/</guid><description>&lt;img src="https://hrideshmg.com/p/reversing-turbo/cover.png" alt="Featured image of post The Key That Did Nothing: My Journey Into the Linux Kernel" />&lt;p>As promised on my &lt;a class="link" href="https://hrideshmg.com/p/lfx-mentorship/#enabling-turbo-support-on-my-laptop" >blog post&lt;/a> about the Linux Kernel mentorship program, this article will be about my endeavours in trying to enable turbo support for my laptop on Linux.&lt;/p>
+&lt;h2 id="how-it-all-began">How it all began
+&lt;/h2>&lt;p>It all started one day when I was sitting in front of my laptop completely zoned out. My eyes glanced upon the keyboard and I caught myself staring at a key which usually opens an app to change performance profiles of the laptop.&lt;/p>
+&lt;p>Now, much to the surprise of nobody, this key did not do anything on Linux since the NitroSense app (as is the case with most proprietary software) only works on Windows, regardless, I still wondered if it was possible to change thermal profiles on Linux. To my surprise, someone had already made a &lt;a class="link" href="https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module" target="_blank" rel="noopener"
+>kernel module&lt;/a> for this purpose! Unfortunately (or fortunately, since we wouldn&amp;rsquo;t have this article otherwise :)) it only supported the Acer Predator Series of laptops, whereas my laptop was from the Nitro Series.&lt;/p>
+&lt;p>Anyways, it proved as a good starting point and while going through the source code of the project, I realized that this module was nothing more than a modified fork of a module from the platform profile subsystem on the kernel tree.&lt;/p>
+&lt;h2 id="let-the-tinkering-begin">Let the tinkering begin!
+&lt;/h2>&lt;h3 id="finding-the-hidden-interface">Finding The Hidden Interface
+&lt;/h3>&lt;p>After a brief skim through the project, I understood that things like RGB LEDs, fan profiles and certain other hardware related functionalities are often controlled through something known as &lt;a class="link" href="https://en.wikipedia.org/wiki/Windows_Management_Instrumentation" target="_blank" rel="noopener"
+>WMI&lt;/a>, during this phase I also chanced upon a youtube &lt;a class="link" href="https://www.youtube.com/watch?v=97-WNhUmoig&amp;amp;list=PLv2kA4LxAI4Dq2ic_hU9bdvxIzoz5SzBr" target="_blank" rel="noopener"
+>miniseries&lt;/a> created by the author of the project which gave me some great insight into how this project works under the hood.&lt;/p>
+&lt;p>In short, the WMI &lt;a class="link" href="https://docs.kernel.org/wmi/acpi-interface.html" target="_blank" rel="noopener"
+>interface&lt;/a> allows software to communicate with the hardware by sending certain commands. These commands are handled by special WMI entries defined in the ACPI tables stored in the system firmware. That&amp;rsquo;s a whole lot of words just to say — system send command, hardware do thing.&lt;/p>
+&lt;h3 id="playing-around-with-wmi">Playing around with WMI
+&lt;/h3>&lt;p>First off I started by randomly tweaking a few values in the source code (&lt;em>sidenote: you probably shouldn&amp;rsquo;t be doing this at the kernel level!&lt;/em>) and briefly got my fans to spin to their maximum speeds but the thermal profiles did not seem to budge, my CPU was still throttled at a respectable 3.2 GHz and I was none the wiser&lt;br>Regardless, this confirmed my assumptions regarding WMI and thus I booted into Windows to monitor WMI activity and sure enough, whenever I changed thermal profiles using the app, a WMI event was registered on the &lt;a class="link" href="https://en.wikipedia.org/wiki/Event_Viewer" target="_blank" rel="noopener"
+>Windows Event Viewer&lt;/a>.&lt;/p>
+&lt;p>The monitor told me that two WMI functions - &lt;code>SetGamingFanBehavior&lt;/code> and &lt;code>SetGamingMiscSetting&lt;/code> were called for changing fan speeds and applying overclocks respectively. Just knowing this alone wasn&amp;rsquo;t enough though, I also needed to know what inputs are fed into these methods so that they actually do something. The event viewer, sadly, provided no means to track inputs.&lt;br>&lt;/p>
+&lt;h3 id="wmi-explorer">WMI Explorer
+&lt;/h3>&lt;p>Initially, I tried to do some trial and error using a tool I discovered called &lt;a class="link" href="https://github.com/vinaypamnani/wmie2" target="_blank" rel="noopener"
+>WMI Explorer&lt;/a> to manually invoke these functions but it didn&amp;rsquo;t seem to do anything. I later realized that the only way to figure out the required inputs was to reverse engineer the program which calls the function.&lt;/p>
+&lt;p>I also made a small documentation &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/diff/Documentation/wmi/driver-development-guide.rst?id=98e45f0d7b99ceac029913ce3a161154a8c4c4a7" target="_blank" rel="noopener"
+>patch&lt;/a> during this time to mention this neat little tool in the WMI driver development &lt;a class="link" href="https://docs.kernel.org/wmi/driver-development-guide.html" target="_blank" rel="noopener"
+>guide&lt;/a>.&lt;/p>
+&lt;h2 id="reversing-the-nitrosense-app">Reversing the NitroSense app
+&lt;/h2>&lt;p>Thus it began, my first foray into reverse engineering a real app. The NitroSense app was written in C# and thus I used dotPeek to decompile it.&lt;/p>
+&lt;h3 id="fan-modes-cracked">Fan Modes Cracked
+&lt;/h3>&lt;p>While searching for the input values for the overclock WMI call, I coincidentally chanced upon the function that was responsible for setting the fan modes —&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-C" data-lang="C">&lt;span class="line">&lt;span class="cl">&lt;span class="n">public&lt;/span> &lt;span class="k">static&lt;/span> &lt;span class="kt">bool&lt;/span> &lt;span class="nf">set_all_fan_mode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">CommonFunction&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">Fan_Mode_Type&lt;/span> &lt;span class="n">mode_index&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ulong&lt;/span> &lt;span class="n">intput&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">9&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">switch&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">mode_index&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="n">CommonFunction&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">Fan_Mode_Type&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nl">Auto&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">intput&lt;/span> &lt;span class="o">|=&lt;/span> &lt;span class="mi">4259840UL&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">break&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="n">CommonFunction&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">Fan_Mode_Type&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nl">Max&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">intput&lt;/span> &lt;span class="o">|=&lt;/span> &lt;span class="mi">8519680UL&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">break&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="n">CommonFunction&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">Fan_Mode_Type&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nl">Custom&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">intput&lt;/span> &lt;span class="o">|=&lt;/span> &lt;span class="mi">12779520UL&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">break&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">((&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="n">WMIFunction&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">SetAcerGamingFanGroupBehavior&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">intput&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nf">GetAwaiter&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">GetResult&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">&amp;amp;&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="n">byte&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">MaxValue&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>As we can see, input values of the WMI function are readily available here! There are three magic values which correspond to the three different fan modes. Was a bit surprised to the see the typo in the &amp;lsquo;intput&amp;rsquo; variable, kind of refreshing to know that even billion dollar companies have such mistakes in their code lol.&lt;/p>
+&lt;h3 id="in-search-of-overclocks">In Search Of Overclocks..
+&lt;/h3>&lt;p>The overclock function was sadly not as simple of an egg to crack. I traced through the GUI code for the app and narrowed it down to this particular function -&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-C" data-lang="C">&lt;span class="line">&lt;span class="cl">&lt;span class="n">public&lt;/span> &lt;span class="k">static&lt;/span> &lt;span class="n">async&lt;/span> &lt;span class="n">Task&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">set_operation_mode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">Operation_Mode&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">int&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">try&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">NamedPipeClientStream&lt;/span> &lt;span class="n">cline_stream&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">new&lt;/span> &lt;span class="nf">NamedPipeClientStream&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;.&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;PredatorSense_service_namedpipe&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">PipeDirection&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">InOut&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cline_stream&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Connect&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">await&lt;/span> &lt;span class="n">Task&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">Run&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">Func&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(()&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">IPCMethods&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">SendCommandByNamedPipe&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">cline_stream&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">30&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">object&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">uint&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="n">Operation_Mode&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cline_stream&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WaitForPipeDrain&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">byte&lt;/span>&lt;span class="p">[]&lt;/span> &lt;span class="n">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">new&lt;/span> &lt;span class="n">byte&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">9&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cline_stream&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">buffer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">buffer&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">Length&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">BitConverter&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ToInt32&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">buffer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})).&lt;/span>&lt;span class="nf">ConfigureAwait&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">false&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cline_stream&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Close&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nf">catch&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">Exception&lt;/span> &lt;span class="n">ex&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Don&amp;rsquo;t worry if it all looks like gibberish to you, it did to me as well when I first came across it. Since i was wholly unfamiliar with the Windows API, I asked ChatGPT to explain the code to me like a 5 year old. GPT promptly explained that this function was creating something called a &lt;a class="link" href="https://en.wikipedia.org/wiki/Named_pipe" target="_blank" rel="noopener"
+>&amp;ldquo;Named Pipe&amp;rdquo;&lt;/a> which is used for inter-process communication.&lt;/p>
+&lt;p>Uh oh, this meant that the actual WMI call was was being made by a process on the receiving end of this pipe. Interestingly, I noted that the name of the pipe was &amp;lsquo;PredatorSense_&lt;strong>service&lt;/strong>&amp;rsquo;, suggesting that the recipient process was a service.&lt;/p>
+&lt;p>While we are here, let me also comment that the &lt;code>Operation_Mode&lt;/code> argument of &lt;code>set_operation_mode()&lt;/code> took one of three values: 0, 1 or 4. Which makes sense considering that my lapop has three performance modes.&lt;/p>
+&lt;h3 id="the-final-piece-of-the-puzzle">The Final Piece Of The Puzzle
+&lt;/h3>&lt;p>Sure enough, there was indeed a service in services.msc named &lt;code>Predator Service&lt;/code>, the service started a program called &lt;code>Pssvc.exe&lt;/code>. This particular program was written in C++, I initially used IDA to disassemble it before realizing that I had pretty much 0 knowledge of assembly ;-;&lt;/p>
+&lt;p>That&amp;rsquo;s when I remembered Ghidra, a reversing tool developed by the NSA, that I had used during a CTF contest that I had played a long time ago. Ghidra tries its best to produce a readable C-like program from the disassembled code.&lt;/p>
+&lt;p>After some heavy decompiling on the service file using Ghidra I finally found out that the value is read from the named pipe and then used to call a function from a function pointer table as follows:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-C" data-lang="C">&lt;span class="line">&lt;span class="cl">&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">code&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="n">PTR_LAB_140052c90&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="n">uVar14&lt;/span>&lt;span class="p">])(&lt;/span>&lt;span class="n">puVar5&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">puVar8&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="n">local_250&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="n">local_244&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Here, &lt;code>&amp;amp;PTR_LAB_140052c90&lt;/code> refers to the following function pointer table -&lt;/p>
+&lt;img src="function_table.png" width="480">
+&lt;p>If you remember from &lt;a class="link" href="#in-search-of-overclocks" >earlier&lt;/a>, a command index of 30 was passed into the named pipe along with the Operation Mode. This index corresponds to the function pointer that I&amp;rsquo;ve highlighted in the image.&lt;/p>
+&lt;p>I still needed to know what the arguments are for this function, here is the relevant section of the code which receives the input from the named pipe and calls this function —&lt;/p>
+&lt;img src="ghidra_decomp.png" width="580">
+&lt;p>Yes, it&amp;rsquo;s one hell of a monstrosity—but after staring at it for a long time, I figured out that all it does is pass an array of bytes from the named pipe with their corresponding byte offsets to the function. You can observe this in the last line of code which actually performs the function call, &lt;code>puVar5&lt;/code> is the array of bytes and &lt;code>puVar8&lt;/code> are the byte offsets (I think anyways)&lt;/p>
+&lt;h3 id="jackpot">Jackpot
+&lt;/h3>&lt;p>Finally, we are ready to analyze the function that makes the WMI call —&lt;/p>
+&lt;img src="final_function.png" width="580">
+&lt;p>This function dereferences the values from the byte array and performs a bitwise operation (&lt;code>value &amp;lt;&amp;lt; 8 | 0xb;&lt;/code>) on them before passing them to the WMI call. Doing this manually on the &lt;code>OperationMode&lt;/code> values from earlier, we get the following values for WMI calls:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-rust" data-lang="rust">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">//SetGamingMiscSetting
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">Performance&lt;/span>: &lt;span class="mi">1035&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nb">Default&lt;/span>: &lt;span class="mi">267&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="n">Quiet&lt;/span>: &lt;span class="mi">11&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="c1">//SetGamingFanBehavior
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">Custom&lt;/span>: &lt;span class="mi">12779520&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="n">Auto&lt;/span>: &lt;span class="mi">4259840&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="n">Max&lt;/span>: &lt;span class="mi">8519689&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Using WMI Explorer to call this function with this values does indeed change performance profiles and fan speeds! All of this reversing had finally paid off! Or so I thought..&lt;/p>
+&lt;h2 id="writing-the-patch">Writing The Patch
+&lt;/h2>&lt;p>After all of that work—reverse engineering the NitroSense app and painstakingly obtaining the correct values, I was ready to write my patch. Which is when I discovered that the kernel module, &lt;a class="link" href="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/platform/x86/acer-wmi.c" target="_blank" rel="noopener"
+>acer-wmi&lt;/a>, which adds WMI functionality to Linux for my laptop already had all of the above values defined! 🙃&lt;/p>
+&lt;p>Now this truly threw me for a loop, if someone had already taken the time to reverse these values why weren&amp;rsquo;t they working on my laptop? Initially I thought this was because my turbo button was not producing a WMI event when pressed.&lt;/p>
+&lt;p>I &lt;a class="link" href="https://lore.kernel.org/platform-driver-x86/CALiyAom1xDH6A0Q2WNHCMUcpMJfM3pXO2DaW=bgHGUi8ZOpBbQ@mail.gmail.com/" target="_blank" rel="noopener"
+>reached out&lt;/a> the maintainers on the platform profile subsystem asking for help and they were more than ready to help. In fact, one of them even offered to write the patch for me! However since my main aim was to learn, I politely refused and he was kind enough to guide me in the right direction.&lt;/p>
+&lt;p>From there, I learnt about ACPI tables where these WMI functions are defined and the corresponding &lt;a class="link" href="https://unix.stackexchange.com/questions/534429/how-to-print-the-acpi-table" target="_blank" rel="noopener"
+>tools&lt;/a> used to read them. After scanning through the ACPI code I realized that the Predator and Nitro series of laptops share the same values for the profiles and that the core issue was that the Predator series supports two additional profiles.&lt;/p>
+&lt;p>The &lt;code>acer_wmi&lt;/code> module had the &lt;code>supported_profiles&lt;/code> value hardcoded for the Predator. However, it should have been set dynamically, since the hardware had another WMI call (&lt;code>GetGamingMiscSetting&lt;/code>) that returns a bitmap indicating the supported performance profiles. This function was simply not being utilised by the current driver.&lt;/p>
+&lt;p>Hence, my &lt;a class="link" href="https://lore.kernel.org/all/20250113-platform_profile-v4-0-23be0dff19f1@gmail.com/" target="_blank" rel="noopener"
+>patchset&lt;/a> essentially involved adding dynamic support for setting the supported platform profiles and some other miscellaneous improvements to the platform profile handling for acer laptops. After these patches got merged, I could finally set my performance profiles from the sysfs &lt;a class="link" href="https://docs.kernel.org/userspace-api/sysfs-platform_profile.html" target="_blank" rel="noopener"
+>interface&lt;/a> at &lt;code>/sys/firmware/acpi/platform_profile&lt;/code>!&lt;/p>
+&lt;p>We weren&amp;rsquo;t done yet though. One last issue I was facing is that on Windows, my CPU was able to reach its max thermal limit of 100°C when operating in performance mode but on Linux, it was throttling at 92°C. I initially tried tweaking CPU frequency scaling drivers and other settings without success. After a lot of trial and error, a maintainer suggested installing &lt;a class="link" href="https://man.archlinux.org/man/extra/thermald/thermald.8.en" target="_blank" rel="noopener"
+>thermald&lt;/a>—and that ended up solving the problem!&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>That just about does it, in this rather wordy blog post I&amp;rsquo;ve written down (almost) my complete approach to adding some unsupported functionality for my hardware to the Linux Kernel. Have to say, while it was certainly frustrating at times, it was a great deal of fun. Rarely do you actually get to go down to the basics like ACPI tables or manually juggle bitmasks to solve problems with your laptop. It&amp;rsquo;s hard to explain but there is a sort of raw simplicity operating at such a low level, everything merely does what its meant to do and it does it well. There&amp;rsquo;s no hidden abstractions or sneaky gotcha&amp;rsquo;s that surprise you.&lt;/p>
+&lt;p>Going through this whole process also made me realize that you can literally solve any problem you have with software, as long as you have the grit to stick with it and see it through.&lt;/p></description></item><item><title>Arcane</title><link>https://hrideshmg.com/p/arcane/</link><pubDate>Fri, 14 Mar 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.com/p/arcane/</guid><description>&lt;img src="https://hrideshmg.com/p/arcane/cover.jpg" alt="Featured image of post Arcane" />&lt;p>You ever just sit down after finishing a show, having this indescribable void inside you that you know can&amp;rsquo;t be filled anytime soon? This was me at 2 AM yesterday after finishing Arcane. I can&amp;rsquo;t quite put my finger on what the cause is — is it the realization that there aren&amp;rsquo;t any more episodes? or the fact that this world that you grew so connected to has suddenly ceased to exist?&lt;/p>
+&lt;p>Whatever it is, that void is still here and maybe that&amp;rsquo;s okay. Some stories don&amp;rsquo;t really end, they just leave a piece behind with you. The last time I felt like this was after finishing the 1995 classic &lt;em>Neon Genesis Evangelion&lt;/em>, a show that is still, to this day, very close to my heart. This blog post isn&amp;rsquo;t really meant to be an exhaustive analysis of the show, rather, it&amp;rsquo;s just a personal reflection of some of the elements that I loved about it.&lt;/p>
+&lt;h2 id="the-animation">The Animation
+&lt;/h2>&lt;p>I don&amp;rsquo;t think this is a field which needs much introduction, Arcane has over 16 &lt;a class="link" href="https://en.wikipedia.org/wiki/Arcane_%28TV_series%29#Accolades" target="_blank" rel="noopener"
+>accolades&lt;/a> for animation from various award ceremonies. One thing that really stood out to me in season 2 was the emphasis on the facial expressions of the characters. Paraphrasing a comment I saw on reddit — It actually felt like they were acting, 3D models, acting! You can see the pain, hesitation and trauma written all over their faces. Their pupils dilate and their eyes glisten depending on the scenes the characters are in.&lt;/p>
+&lt;p>Fortiche have pretty much cemented themselves as pioneers with their distinctive style and attention to detail and I&amp;rsquo;m pretty excited to see what comes out of this studio next.&lt;/p>
+&lt;h2 id="the-characterswriting">The Characters/Writing
+&lt;/h2>&lt;p>This is where the brilliance of the show really shines through. I could personally connect and empathize with a lot of characters in the show, their arcs are meaningful and full of emotion. Almost each and every character in the show has flaws in one way or another and they all try to overcome their pain and trauma in &lt;em>distinct&lt;/em> ways.&lt;/p>
+&lt;p>There&amp;rsquo;s this rawness to the way the show explores themes like revenge, betrayal, abandonment, family, loss etc. The writers really don&amp;rsquo;t pull their punches here, so don&amp;rsquo;t be surprised if a character you really like ends up in the casket a few episodes down.&lt;/p>
+&lt;p>It also helps that the show religiously follows the &lt;a class="link" href="https://en.wikipedia.org/wiki/Rule_of_three_%28writing%29" target="_blank" rel="noopener"
+>rule of 3&lt;/a>. Each season is composed of 9 episodes each with every 3 episodes forming an act. Each act moves the story forward in a significant and &lt;em>intentional&lt;/em> way. The end result of this is that no episode really feels like filler, because all of them serve a specific purpose in their respective acts. Everything has weight and by the time you reach the end of an act, it feels like you&amp;rsquo;ve completed a movie by itself.&lt;/p>
+&lt;h2 id="the-musicsound-design">The Music/Sound Design
+&lt;/h2>&lt;p>Arcane has hands down one of the best sound design I&amp;rsquo;ve seen in any animated show ever, an incredible amount of detail has gone into making sure the world feels real. Every punch, object falling, weapon firing have this &lt;em>impact&lt;/em> to them, it almost feels like you are there in the world hearing it for yourself. Do yourself a favour and watch this show with headphones on, trust me, you won&amp;rsquo;t regret it.&lt;/p>
+&lt;p>The soundtrack is also out of this world, the songs really do take impactful scenes to the next level by amplifying the emotions on display in each scene. I read somewhere that each song was custom made for the show and it &lt;em>&lt;strong>shows&lt;/strong>&lt;/em>. I&amp;rsquo;ve been replaying &lt;a class="link" href="https://open.spotify.com/track/2LwsunYgfRoqyIsNtgOCQx?si=9f068d387f2c48bf" target="_blank" rel="noopener"
+>&amp;ldquo;Ma Meilleure Ennemie&amp;rdquo;&lt;/a> from episode 8 of season 2 nonstop and the way they integrated it with the scene was impeccable.&lt;br>
+It kind of reminds me of the ending song of &lt;em>Cyberpunk: Edgerunners&lt;/em> - &lt;a class="link" href="https://open.spotify.com/track/7mykoq6R3BArsSpNDjFQTm?si=b21369f1483f46ff" target="_blank" rel="noopener"
+>&amp;ldquo;I Really Want to Stay at Your House&amp;rdquo;&lt;/a>. I&amp;rsquo;d like to keep this review spoiler free but if you know, you know :)&lt;/p>
+&lt;p>Music when done right is actually one of my favourite aspects of media whether it be shows, movies or games for the simple reason that listening to a song can evoke the same emotion that you felt while actually experiencing the story for the first time.&lt;/p>
+&lt;h2 id="the-world-building">The World Building
+&lt;/h2>&lt;p>As someone who hasn&amp;rsquo;t really played the game much or has read any of the lore. The writers definitely managed to make the land of Piltover (and Runeterra in general) feel alive. I will always say that first and foremost, Arcane is a show about the characters but they have put a lot of work into the technical aspects as well. (Minor Spoilers!) Even exploring concepts like time travel and parallel dimensions.&lt;/p>
+&lt;p>Sadly, it did feel a bit rushed at times, particularly during S2, but its understandable considering that they wanted to finish the story in two seasons.&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>I have to say, I do feel a bit spoiled after watching this show. It&amp;rsquo;s not everyday that you come across a piece of art that has had this much love and attention to detail put into it. Don&amp;rsquo;t let the fact that its an animated show put you off, you would be missing out on one of the finest shows produced in this decade (maybe more).&lt;/p></description></item><item><title>Linux Kernel Mentorship</title><link>https://hrideshmg.com/p/lfx-mentorship/</link><pubDate>Sat, 08 Mar 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.com/p/lfx-mentorship/</guid><description>&lt;img src="https://hrideshmg.com/p/lfx-mentorship/cover.png" alt="Featured image of post Linux Kernel Mentorship" />&lt;p>This blog post has been long overdue but I&amp;rsquo;ve finally gotten around to it! I graduated from the Linux Kernel Bug Fixing Mentorship Programme'25 sometime in late january. I&amp;rsquo;ll be detailing my experience about the same in this blog post.&lt;/p>
+&lt;h2 id="what-is-the-lkmp">What is the LKMP?
+&lt;/h2>&lt;p>The Linux Kernel Mentorship programme or &lt;a class="link" href="https://wiki.linuxfoundation.org/lkmp" target="_blank" rel="noopener"
+>LKMP&lt;/a> for short is, as written on their website -&lt;/p>
+&lt;blockquote>
+&lt;p>&amp;ldquo;A structured remote learning opportunity for aspiring Linux Kernel developers&amp;rdquo;&lt;/p>&lt;/blockquote>
+&lt;p>In specific, the programme that I was part of was the Linux Kernel Bug Fixing Programme but don&amp;rsquo;t let the name fool you, you can do a lot more than just fix bugs, like writing new device drivers or extending existing ones.&lt;/p>
+&lt;p>In short, its an opportunity where beginners to kernel dev can get their feet wet with the Linux Kernel while being supported by experienced mentors. Note that unlike GSoC or traditional &lt;a class="link" href="https://lfx.linuxfoundation.org/tools/mentorship/" target="_blank" rel="noopener"
+>LFX&lt;/a> mentorships, the kernel bug fixing mentorship is an unpaid one but the knowledge you get from the whole process is worth its weight in gold.&lt;/p>
+&lt;p>If, however, you&amp;rsquo;re someone who needs a little more motivation than that then you should probably look elsewhere as you can only ever do one LFX mentorship during your lifetime. Choose wisely :)&lt;/p>
+&lt;h3 id="the-structure-of-the-program">The structure of the program
+&lt;/h3>&lt;p>I would say that the LKMP is a very flexible program in the sense that there is no roadmap or particular set of tasks that you have to complete in order to graduate. You are free to make any kind of meaningful contribution to the kernel, this opens the door to work on anything that you&amp;rsquo;re truly interested in. This coupled with the fact that you get to attend weekly meetings with experienced kernel developers makes it a very enriching experience.&lt;/p>
+&lt;p>The only requirements for graduation is that you need to have around &lt;strong>5-10 patches&lt;/strong> accepted into the Linux Kernel by the end of the program. This might seem difficult at the start, but trust me, once you get into the flow of things, it becomes a breeze.&lt;/p>
+&lt;h2 id="why-i-decided-to-join-the-programme">Why I decided to join the programme
+&lt;/h2>&lt;p>There&amp;rsquo;s actually a bit of an interesting backstory behind this, when I first bought my laptop (an Acer Nitro 5) and installed Linux on it ( as one does with a brand new PC, &lt;em>obviously&lt;/em> ) I noticed that no matter what I tried, I just could not get the headphone jack to detect the microphone.&lt;/p>
+&lt;p>This is an issue that I had revisisted multiple times over the course of a year and it had even persisted across distros! This led me to believe that the issue was in the kernel and sure enough, after a bit of research this had been the case.&lt;/p>
+&lt;p>Around this time a few of my &lt;a class="link" href="https://www.amfoss.in" target="_blank" rel="noopener"
+>club&lt;/a> seniors suggested me to try out the LFX mentorship since I wanted to explore low level development and I figured that it was the perfect opportunity to try and fix this tiny (but very annoying!) problem. As Plato once said -&lt;/p>
+&lt;blockquote>
+&lt;p>&amp;ldquo;Necessity is the mother of invention&amp;rdquo;
+&lt;br>&amp;ndash; &lt;cite>Plato&lt;/cite>&lt;/p>&lt;/blockquote>
+&lt;h2 id="my-contributions">My contributions
+&lt;/h2>&lt;h3 id="fixing-microphone-input-on-the-alc287-codec">Fixing microphone input on the ALC287 Codec
+&lt;/h3>&lt;p>After a bit of research, I stumbled upon this excellent blog &lt;a class="link" href="https://asus-linux.org/blog/sound-2021-01-11/" target="_blank" rel="noopener"
+>post&lt;/a> by Luke Jones on his adventure for getting sound to work on Asus ROG notebook. If it were not for this resource, this journey would have been much, much longer.&lt;/p>
+&lt;p>Through his blog I understood a lot of fundamentals regarding how audio is handled for Realtek Codecs on Linux but wait a minute Hridesh, what on earth is a Codec? Let me explain it with the help of an image -&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;img src="https://hrideshmg.com/p/lfx-mentorship/hdaudio.png"
+width="506"
+height="372"
+srcset="https://hrideshmg.com/p/lfx-mentorship/hdaudio_hu_aba675a659b2acb4.png 480w, https://hrideshmg.com/p/lfx-mentorship/hdaudio_hu_93f35c3bd0b5d4f.png 1024w"
+loading="lazy"
+alt="Audio Architecture"
+class="gallery-image"
+data-flex-grow="136"
+data-flex-basis="326px"
+>&lt;/p>&lt;/blockquote>
+&lt;p>As you can see the &lt;strong>Codec&lt;/strong> is a hardware chip on the motherboard which is responsible for controlling the speakers and microphone on the system. The kernel interacts with this chip using the I2C interface, but we don&amp;rsquo;t need to go that deep to fix our issue.&lt;/p>
+&lt;p>The problem that occurs here is that this codec expects the software to interact with it in a certain manner. However, Realtek, in all their glory, often ship these chips with non-standard configurations, meaning they don&amp;rsquo;t always properly report their capabilities to the operating system. Instead, they rely on driver-specific &lt;strong>quirks&lt;/strong> to function correctly.&lt;/p>
+&lt;p>The issue is that these quirks are only implemented in the Windows driver, leaving Linux users to manually patch or configure the kernel to get everything working. The result of this? A giant file in the kernel tree named &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/sound/pci/hda/patch_realtek.c?h=v6.14" target="_blank" rel="noopener"
+>patch_realtek.c&lt;/a> which has (at the time of writing) over 13,000 lines of patches for various different codecs.&lt;/p>
+&lt;p>After digging a bit deeper into it and experimenting a bit, I finally got it to work after reverse engineering the windows driver and figuring out which quirk was missing! This was my reaction after finally see the mic input meter start moving -&lt;/p>
+&lt;p>&lt;img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExd3Y5djB6djhxbnl3am4zY29kanF5OGh4azFpbm1wbXdtMnRsYTRiOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/S9i8jJxTvAKVHVMvvW/giphy.gif"
+loading="lazy"
+alt="happy"
+>&lt;/p>
+&lt;p>Apparently, the quirk that I had found out was already defined in the &lt;code>patch_realtek&lt;/code> file, so all I had to do was map it to my codec. I quickly made a &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit/?id=5a69e3d0a1b0f07e58c353560cfcb1ea20a6f040" target="_blank" rel="noopener"
+>patch&lt;/a> and submitted it and it finally got released in v6.13 of the kernel. This means that everyone who has my laptop or uses the same audio codec can finally enjoy working microphone input.&lt;/p>
+&lt;h3 id="enabling-turbo-support-on-my-laptop">Enabling Turbo support on my laptop
+&lt;/h3>&lt;p>The second contribution is the one I spent the most amount of time on and it&amp;rsquo;s where I realized how awesome the kernel community really is. My laptop is a gaming laptop and gaming laptops often have this feature where you can activate certain &lt;strong>profiles&lt;/strong> like &amp;ldquo;performance&amp;rdquo; or &amp;ldquo;quiet&amp;rdquo;.&lt;/p>
+&lt;p>These profiles enable you to extract more power from your machine by overclocking the CPU/GPU or tell it to slow down the fans so that it runs more quietly. However, these profiles are only accessible on Windows through the dedicated vendor app.&lt;/p>
+&lt;p>I was initially skeptical as to whether it was even possible to bring this support to Linux, which prompted me to send an email to the kernel mailing list asking for help. The developers there were extremely supportive and they even offered to write the patch for me! However, since I wanted to learn and tinker with it, I endeavoured to try and implement it myself.&lt;/p>
+&lt;p>Through the process, I learnt about a variety of different things like ACPI tables, WMI calls, sysfs interfaces, and even did some indepth reverse-engineering using Ghidra and dotPeek to find out how the Windows app worked underneath the hood. &lt;del>A full technical write up on this would warrant another blog post, so keep an eye out for that&lt;/del> The &lt;a class="link" href="https://hrideshmg.com/p/reversing-turbo/" >blog post&lt;/a> for it is now out :)&lt;/p>
+&lt;h2 id="my-experience">My experience
+&lt;/h2>&lt;p>The LKMP has been one of the most impactful programs that I&amp;rsquo;ve participated in. You might find this surprising, but the majority of kernel developers aren&amp;rsquo;t actually paid for their work, they do everything voluntarily and their enthusiasm is nothing short of infectious.&lt;/p>
+&lt;p>Taking part in this whole process really taught me a lot, the kernel community has very high standards when it comes to code quality. I&amp;rsquo;ve had maintainers painstakingly take apart each line in my patch to suggest improvements and question logic but don&amp;rsquo;t be scared of this! In fact, this level of scrutiny is what makes the kernel so robust. Every comment from a maintainer is an opportunity to learn, not just about kernel code but about writing efficient, clean and maintainable code.&lt;/p>
+&lt;p>I feel like the way I approach code has fundamentally changed after taking part in the LKMP. For starters, I&amp;rsquo;ve become much more conscious of the changes that I make and running &lt;code>git diff&lt;/code> to verify my logic before every commit has pretty much become second nature to me.&lt;/p>
+&lt;p>Debugging issues in a codebase as large and complex as the Linux Kernel has also given me the confidence that if I put my mind to it, I can tackle any problem, no matter how large it may seem. It wouldn&amp;rsquo;t be an exaggeration to say that I&amp;rsquo;ve improved significantly as a developer after completing the programme.&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>I think I&amp;rsquo;ll just end this post by saying that if you&amp;rsquo;ve been meaning to explore kernel development or just become a better developer overall, the LKMP is a fantastic opportunity. The learning curve might be a bit steep, but as they say - &amp;ldquo;Its the hard things in life that are worth doing.&amp;rdquo;&lt;/p>
+&lt;p>Here is a link where you can check out all of my contributions to the kernel: &lt;a class="link" href="https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/log/?qt=author&amp;amp;q=hridesh" target="_blank" rel="noopener"
+>https://web.git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/log/?qt=author&amp;q=hridesh&lt;/a>&lt;/p></description></item><item><title>Silence</title><link>https://hrideshmg.com/p/silence/</link><pubDate>Sun, 16 Feb 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.com/p/silence/</guid><description>&lt;p>I sit here in the darkness, my laptop wide open, the gentle hum of the ceiling fan and the rhythmic pulse of the led on the wifi router my only companion.&lt;/p>
+&lt;p>There is no sound, except the one within my mind. Thoughts as they are - floating about, colliding and colluding, such is the nature of existence.&lt;/p>
+&lt;p>Sound may very well be the antithesis of introspection, for quiet retreat is a tough thing to find in this noisy and bustling world. Yet, I wish it more common.&lt;/p>
+&lt;p>The external silence only serves to amplify the internal chaos; yet, without it, one wouldn&amp;rsquo;t even realize the disarray within.&lt;/p></description></item><item><title>Hello World!</title><link>https://hrideshmg.com/p/hello-world/</link><pubDate>Thu, 13 Feb 2025 00:00:00 +0000</pubDate><guid>https://hrideshmg.com/p/hello-world/</guid><description>&lt;img src="https://hrideshmg.com/p/hello-world/cover.webp" alt="Featured image of post Hello World!" />&lt;h2 id="a-bit-about-myself">A bit about myself
+&lt;/h2>&lt;p>Hey there I&amp;rsquo;m Hridesh MG and welcome to my little space on the interwebs. I&amp;rsquo;m a sophomore student pursuing Computer Science Engineering at &lt;a class="link" href="https://www.amrita.edu/" target="_blank" rel="noopener"
+>Amrita University&lt;/a>. I&amp;rsquo;ve been meaning to make this blog for a while now but only got around to doing it recently.&lt;/p>
+&lt;p>I&amp;rsquo;m quite passionate about software development and actually I&amp;rsquo;m part of an open source club at my college called &lt;a class="link" href="https://amfoss.in/" target="_blank" rel="noopener"
+>amFOSS&lt;/a>. Tech is not all though, few of my other hobbies include tinkering with electronics, watching anime, playing video games, and pondering about life while gazing at the stars. That said, I&amp;rsquo;m always open to trying new things and I always like to refer to myself as a generalist, as the famous quote goes -&lt;/p>
+&lt;blockquote>
+&lt;p>Jack of all trades, master of none, though often better than a master of one&lt;/p>&lt;/blockquote>
+&lt;h2 id="what-you-can-expect">What you can expect
+&lt;/h2>&lt;p>There&amp;rsquo;s no point in hiding it, as you could probably tell from my hobbies, I&amp;rsquo;m a huge nerd and that is going to reflect on the type of content I write as well :)&lt;/p>
+&lt;p>Here are a few topics that you can expect to &lt;em>(hopefully)&lt;/em> find on this blog soon -&lt;/p>
+&lt;ol>
+&lt;li>Technical blogs about stuff I&amp;rsquo;ve learned recently or things I find interesting.&lt;/li>
+&lt;li>Reviews on Anime I&amp;rsquo;ve watched or Games I&amp;rsquo;ve played.&lt;/li>
+&lt;li>Tutorials on random things that I feel deserve one.&lt;/li>
+&lt;li>Sharing my experience on events I&amp;rsquo;ve attended/helped organize.&lt;/li>
+&lt;li>Random jottings about life.&lt;/li>
+&lt;/ol></description></item></channel></rss>
