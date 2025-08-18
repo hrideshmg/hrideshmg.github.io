@@ -1,5 +1,5 @@
 # Change baseurl before deploy
-baseurl = "https://hrideshmg.github.io"
+baseurl = "https://hrideshmg.com"
 languageCode = "en-us"
 title = "Hridesh MG"
 enableGitInfo = true
